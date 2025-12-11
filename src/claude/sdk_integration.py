@@ -127,6 +127,12 @@ class StreamUpdate:
     tool_calls: Optional[List[Dict]] = None
     metadata: Optional[Dict] = None
 
+    def get_tool_names(self) -> List[str]:
+        """Extract tool names from tool_calls."""
+        if not self.tool_calls:
+            return []
+        return [tool.get("name", "unknown") for tool in self.tool_calls]
+
 
 class ClaudeSDKManager:
     """Manage Claude Code SDK integration."""
@@ -347,17 +353,47 @@ class ClaudeSDKManager:
                 # Extract content from assistant message
                 content = getattr(message, "content", [])
                 if content and isinstance(content, list):
-                    # Extract text from TextBlock objects
+                    # Separate text blocks and tool use blocks
                     text_parts = []
+                    tool_calls = []
+
                     for block in content:
                         if hasattr(block, "text"):
                             text_parts.append(block.text)
+                        elif isinstance(block, ToolUseBlock):
+                            # Extract tool call information
+                            # ToolUseBlock has: id (str), name (str), input (dict)
+                            tool_call = {
+                                "name": block.name,
+                                "input": block.input,
+                            }
+                            tool_calls.append(tool_call)
+
+                            # Log tool call for visibility
+                            logger.info(
+                                "Tool call detected in stream",
+                                tool_name=tool_call["name"],
+                                tool_input_keys=list(tool_call["input"].keys()) if isinstance(tool_call["input"], dict) else "N/A",
+                            )
+
+                    # Send text content update if available
                     if text_parts:
                         update = StreamUpdate(
                             type="assistant",
                             content="\n".join(text_parts),
+                            tool_calls=tool_calls if tool_calls else None,
                         )
                         await stream_callback(update)
+
+                    # Send tool calls update even if no text
+                    elif tool_calls:
+                        update = StreamUpdate(
+                            type="assistant",
+                            content=None,
+                            tool_calls=tool_calls,
+                        )
+                        await stream_callback(update)
+
                 elif content:
                     # Fallback for non-list content
                     update = StreamUpdate(
@@ -365,9 +401,6 @@ class ClaudeSDKManager:
                         content=str(content),
                     )
                     await stream_callback(update)
-
-                # Check for tool calls (if available in the message structure)
-                # Note: This depends on the actual claude-code-sdk message structure
 
             elif isinstance(message, UserMessage):
                 content = getattr(message, "content", "")
@@ -414,9 +447,9 @@ class ClaudeSDKManager:
                         if isinstance(block, ToolUseBlock):
                             tools_used.append(
                                 {
-                                    "name": getattr(block, "tool_name", "unknown"),
+                                    "name": block.name,
                                     "timestamp": current_time,
-                                    "input": getattr(block, "tool_input", {}),
+                                    "input": block.input,
                                 }
                             )
 
