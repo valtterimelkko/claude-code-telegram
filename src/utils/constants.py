@@ -83,5 +83,13 @@ DEFAULT_BACKUP_RETENTION_DAYS = 30
 DEFAULT_CLAUDE_BINARY = "claude"
 DEFAULT_CLAUDE_OUTPUT_FORMAT = "stream-json"
 
+# Claude model presets (shortcuts for quick switching)
+CLAUDE_MODEL_PRESETS = {
+    "opus": "claude-opus-4-5-20251101",
+    "sonnet": "claude-sonnet-4-5-20250929",
+    "haiku": "claude-haiku-4-5-20250129",
+}
+DEFAULT_CLAUDE_MODEL = "claude-sonnet-4-5-20250929"  # Sonnet by default
+
 # Logging
 LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"

@@ -158,6 +158,7 @@ class ClaudeSDKManager:
         session_id: Optional[str] = None,
         continue_session: bool = False,
         stream_callback: Optional[Callable[[StreamUpdate], None]] = None,
+        model: Optional[str] = None,
     ) -> ClaudeResponse:
         """Execute Claude Code command via SDK."""
         start_time = asyncio.get_event_loop().time()
@@ -170,11 +171,15 @@ class ClaudeSDKManager:
         )
 
         try:
+            # Use provided model or config default
+            active_model = model or self.config.claude_model
+
             # Build Claude Code options
             options = ClaudeCodeOptions(
                 max_turns=self.config.claude_max_turns,
                 cwd=str(working_directory),
                 allowed_tools=self.config.claude_allowed_tools,
+                model=active_model,
             )
 
             # Collect messages

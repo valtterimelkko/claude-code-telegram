@@ -69,9 +69,10 @@ class UserRepository:
         async with self.db.get_connection() as conn:
             await conn.execute(
                 """
-                UPDATE users 
-                SET telegram_username = ?, last_active = ?, 
-                    total_cost = ?, message_count = ?, session_count = ?
+                UPDATE users
+                SET telegram_username = ?, last_active = ?,
+                    total_cost = ?, message_count = ?, session_count = ?,
+                    preferred_model = ?
                 WHERE user_id = ?
             """,
                 (
@@ -80,6 +81,7 @@ class UserRepository:
                     user.total_cost,
                     user.message_count,
                     user.session_count,
+                    user.preferred_model,
                     user.user_id,
                 ),
             )

@@ -16,6 +16,17 @@ from ...security.validators import SecurityValidator
 logger = structlog.get_logger()
 
 
+def _escape_markdown(text: str) -> str:
+    """Escape special characters for Telegram Markdown."""
+    if not text:
+        return text
+    # Escape special Markdown characters
+    special_chars = ['_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!']
+    for char in special_chars:
+        text = text.replace(char, f'\\{char}')
+    return text
+
+
 async def _format_progress_update(update_obj) -> Optional[str]:
     """Format progress updates with enhanced context and visual indicators."""
     if update_obj.type == "tool_result":
@@ -26,7 +37,8 @@ async def _format_progress_update(update_obj) -> Optional[str]:
             tool_name = update_obj.metadata.get("tool_name", "Tool")
 
         if update_obj.is_error():
-            return f"❌ **{tool_name} failed**\n\n_{update_obj.get_error_message()}_"
+            error_msg = _escape_markdown(update_obj.get_error_message() or "Unknown error")
+            return f"❌ **{tool_name} failed**\n\n_{error_msg}_"
         else:
             execution_time = ""
             if update_obj.metadata and update_obj.metadata.get("execution_time_ms"):
@@ -55,7 +67,8 @@ async def _format_progress_update(update_obj) -> Optional[str]:
 
     elif update_obj.type == "error":
         # Handle error messages
-        return f"❌ **Error**\n\n_{update_obj.get_error_message()}_"
+        error_msg = _escape_markdown(update_obj.get_error_message() or "Unknown error")
+        return f"❌ **Error**\n\n_{error_msg}_"
 
     elif update_obj.type == "assistant" and update_obj.tool_calls:
         # Show when tools are being called

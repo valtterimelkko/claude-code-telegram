@@ -23,6 +23,7 @@ class UserModel:
     total_cost: float = 0.0
     message_count: int = 0
     session_count: int = 0
+    preferred_model: str = "claude-sonnet-4-5-20250929"
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary."""

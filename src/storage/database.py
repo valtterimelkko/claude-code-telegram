@@ -207,7 +207,7 @@ class DatabaseManager:
                 """
                 -- Add analytics views
                 CREATE VIEW IF NOT EXISTS daily_stats AS
-                SELECT 
+                SELECT
                     date(timestamp) as date,
                     COUNT(DISTINCT user_id) as active_users,
                     COUNT(*) as total_messages,
@@ -217,7 +217,7 @@ class DatabaseManager:
                 GROUP BY date(timestamp);
 
                 CREATE VIEW IF NOT EXISTS user_stats AS
-                SELECT 
+                SELECT
                     u.user_id,
                     u.telegram_username,
                     COUNT(DISTINCT s.session_id) as total_sessions,
@@ -228,6 +228,14 @@ class DatabaseManager:
                 LEFT JOIN sessions s ON u.user_id = s.user_id
                 LEFT JOIN messages m ON u.user_id = m.user_id
                 GROUP BY u.user_id;
+                """,
+            ),
+            (
+                3,
+                """
+                -- Add model preference to users
+                ALTER TABLE users ADD COLUMN preferred_model TEXT
+                DEFAULT 'claude-sonnet-4-5-20250929';
                 """,
             ),
         ]

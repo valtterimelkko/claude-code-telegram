@@ -22,6 +22,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         f"**Available Commands:**\n"
         f"• `/help` - Show detailed help\n"
         f"• `/new` - Start a new Claude session\n"
+        f"• `/model` - Switch Claude model (opus/sonnet/haiku)\n"
         f"• `/ls` - List files in current directory\n"
         f"• `/cd <dir>` - Change directory\n"
         f"• `/projects` - Show available projects\n"
@@ -75,6 +76,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         "**Session Commands:**\n"
         "• `/new` - Start new Claude session\n"
         "• `/continue [message]` - Continue last session (optionally with message)\n"
+        "• `/model [preset]` - Switch Claude model (opus/sonnet/haiku)\n"
         "• `/end` - End current session\n"
         "• `/status` - Show session and usage status\n"
         "• `/export` - Export session history\n"
@@ -918,6 +920,132 @@ async def git_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     except Exception as e:
         await update.message.reply_text(f"❌ **Git Error**\n\n{str(e)}")
         logger.error("Error in git_command", error=str(e), user_id=user_id)
+
+
+async def model_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /model command for switching Claude models."""
+    from ...utils.constants import CLAUDE_MODEL_PRESETS
+    from ...storage.repositories import UserRepository
+
+    user = update.effective_user
+    user_id = user.id
+    message = update.message
+
+    try:
+        # Get current user preferences
+        storage = context.bot_data.get("storage")
+        user_repo: UserRepository = storage.users if storage else None
+
+        if not user_repo:
+            await message.reply_text("❌ **Error**: Storage system not available")
+            return
+
+        user_model = await user_repo.get_user(user_id)
+
+        # Parse command arguments
+        args = context.args if context.args else []
+
+        if not args:
+            # Show current model
+            current_model = user_model.preferred_model if user_model else (
+                "claude-sonnet-4-5-20250929"
+            )
+            model_name = "Unknown"
+            for preset, full_id in CLAUDE_MODEL_PRESETS.items():
+                if full_id == current_model:
+                    model_name = preset.title()
+                    break
+
+            response = (
+                "🤖 **Current Model**\n\n"
+                f"Active: `{model_name}` ({current_model})\n\n"
+                "**Quick Presets:**\n"
+                "• `/model opus` - Opus 4.5 (most capable)\n"
+                "• `/model sonnet` - Sonnet 4.5 (recommended)\n"
+                "• `/model haiku` - Haiku 4.5 (fastest)\n\n"
+                "**Custom Model:**\n"
+                "• `/model <full-model-id>` - Use custom model ID\n"
+                "Example: `/model claude-opus-4-5-20251101`"
+            )
+
+            await message.reply_text(response, parse_mode="Markdown")
+            return
+
+        command = args[0].lower()
+
+        if command == "list":
+            # Show available presets
+            response = (
+                "📋 **Available Model Presets**\n\n"
+                "**Presets:**\n"
+            )
+            for preset, full_id in CLAUDE_MODEL_PRESETS.items():
+                response += f"• `{preset}` → {full_id}\n"
+
+            response += (
+                "\n**Usage:**\n"
+                "• `/model <preset>` - Switch to preset\n"
+                "• `/model <full-id>` - Use custom model ID\n"
+            )
+
+            await message.reply_text(response, parse_mode="Markdown")
+            return
+
+        # Switch to model (preset or custom)
+        new_model = CLAUDE_MODEL_PRESETS.get(
+            command, command
+        )  # Use preset or assume full ID
+
+        # Update user model preference
+        if user_model:
+            user_model.preferred_model = new_model
+            await user_repo.update_user(user_model)
+        else:
+            # Create new user record
+            from ...storage.models import UserModel
+            from datetime import datetime
+
+            new_user = UserModel(
+                user_id=user_id,
+                telegram_username=user.username,
+                first_seen=datetime.utcnow(),
+                last_active=datetime.utcnow(),
+                is_allowed=True,
+                preferred_model=new_model,
+            )
+            await user_repo.create_user(new_user)
+
+        # Determine friendly name
+        friendly_name = command.title()
+        for preset, full_id in CLAUDE_MODEL_PRESETS.items():
+            if full_id == new_model:
+                friendly_name = preset.title()
+                break
+
+        response = (
+            f"✅ **Model Changed**\n\n"
+            f"New model: `{friendly_name}`\n"
+            f"Full ID: `{new_model}`\n\n"
+            f"This model will be used for new sessions starting now."
+        )
+
+        await message.reply_text(response, parse_mode="Markdown")
+
+        # Log command
+        audit_logger: AuditLogger = context.bot_data.get("audit_logger")
+        if audit_logger:
+            await audit_logger.log_command(
+                user_id=user_id,
+                command="model",
+                args=args,
+                success=True,
+            )
+
+    except Exception as e:
+        logger.error("Error in model_command", error=str(e), user_id=user_id)
+        await message.reply_text(
+            f"❌ **Error Changing Model**\n\n{str(e)}", parse_mode="Markdown"
+        )
 
 
 def _format_file_size(size: int) -> str:

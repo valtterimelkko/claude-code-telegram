@@ -17,6 +17,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from src.utils.constants import (
     DEFAULT_CLAUDE_MAX_COST_PER_USER,
     DEFAULT_CLAUDE_MAX_TURNS,
+    DEFAULT_CLAUDE_MODEL,
     DEFAULT_CLAUDE_TIMEOUT_SECONDS,
     DEFAULT_DATABASE_URL,
     DEFAULT_MAX_SESSIONS_PER_USER,
@@ -57,10 +58,13 @@ class Settings(BaseSettings):
     )
     anthropic_api_key: Optional[SecretStr] = Field(
         None,
-        description="Anthropic API key for Claude SDK (optional if logged into Claude CLI)",
+        description=(
+            "Anthropic API key for Claude SDK "
+            "(optional if logged into Claude CLI)"
+        ),
     )
     claude_model: str = Field(
-        "claude-3-5-sonnet-20241022", description="Claude model to use"
+        DEFAULT_CLAUDE_MODEL, description="Claude model to use"
     )
     claude_max_turns: int = Field(
         DEFAULT_CLAUDE_MAX_TURNS, description="Max conversation turns"
@@ -156,8 +160,23 @@ class Settings(BaseSettings):
     @classmethod
     def parse_allowed_users(cls, v: Any) -> Optional[List[int]]:
         """Parse comma-separated user IDs."""
+        if v is None or v == "":
+            return None
         if isinstance(v, str):
             return [int(uid.strip()) for uid in v.split(",") if uid.strip()]
+        if isinstance(v, int):
+            # Handle single integer converted from string by pydantic-settings
+            return [v]
+        if isinstance(v, list):
+            return v
+        return v  # type: ignore[no-any-return]
+
+    @field_validator("claude_allowed_tools", mode="before")
+    @classmethod
+    def parse_claude_allowed_tools(cls, v: Any) -> Optional[List[str]]:
+        """Parse comma-separated tool names."""
+        if isinstance(v, str):
+            return [tool.strip() for tool in v.split(",") if tool.strip()]
         return v  # type: ignore[no-any-return]
 
     @field_validator("approved_directory")

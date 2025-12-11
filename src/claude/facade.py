@@ -131,6 +131,17 @@ class ClaudeIntegration:
 
         # Execute command
         try:
+            # Get user's preferred model if available
+            user_model_pref = None
+            if self.session_manager:
+                try:
+                    user = await self.session_manager._get_user(user_id)
+                    if user and hasattr(user, "preferred_model"):
+                        user_model_pref = user.preferred_model
+                except Exception:
+                    # Silently fall back to config default if user lookup fails
+                    pass
+
             # Only continue session if it's not a new session
             should_continue = bool(session_id) and not getattr(
                 session, "is_new_session", False
@@ -149,6 +160,7 @@ class ClaudeIntegration:
                 session_id=claude_session_id,
                 continue_session=should_continue,
                 stream_callback=stream_handler,
+                model=user_model_pref,
             )
 
             # Check if tool validation failed
@@ -231,6 +243,7 @@ class ClaudeIntegration:
         session_id: Optional[str] = None,
         continue_session: bool = False,
         stream_callback: Optional[Callable] = None,
+        model: Optional[str] = None,
     ) -> ClaudeResponse:
         """Execute command with SDK->subprocess fallback on JSON decode errors."""
         # Try SDK first if configured
@@ -243,6 +256,7 @@ class ClaudeIntegration:
                     session_id=session_id,
                     continue_session=continue_session,
                     stream_callback=stream_callback,
+                    model=model,
                 )
                 # Reset failure count on success
                 self._sdk_failed_count = 0
