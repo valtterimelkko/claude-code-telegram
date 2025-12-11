@@ -146,3 +146,53 @@ data/
 sessions/
 backups/
 uploads/
+cache/
+temp/
+tmp/
+
+# Environment & Secrets
+.env.local
+.env.*.local
+.env.backup
+
+# Poetry
+poetry.lock
+
+# VSCode workspace settings
+.vscode/settings.json
+.vscode/launch.json
+.vscode/*.code-workspace
+
+# System files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Logs and databases (more comprehensive)
+logs/
+*.log
+*.log.*
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# Python specific
+*.pyc
+__pycache__/
+.python-version
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+*.sublime-*
