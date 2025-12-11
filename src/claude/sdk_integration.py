@@ -127,6 +127,12 @@ class StreamUpdate:
     tool_calls: Optional[List[Dict]] = None
     metadata: Optional[Dict] = None
 
+    def get_tool_names(self) -> List[str]:
+        """Extract tool names from tool_calls."""
+        if not self.tool_calls:
+            return []
+        return [tool.get("name", "unknown") for tool in self.tool_calls]
+
 
 class ClaudeSDKManager:
     """Manage Claude Code SDK integration."""
@@ -356,9 +362,10 @@ class ClaudeSDKManager:
                             text_parts.append(block.text)
                         elif isinstance(block, ToolUseBlock):
                             # Extract tool call information
+                            # ToolUseBlock has: id (str), name (str), input (dict)
                             tool_call = {
-                                "name": getattr(block, "tool_name", "unknown"),
-                                "input": getattr(block, "tool_input", {}),
+                                "name": block.name,
+                                "input": block.input,
                             }
                             tool_calls.append(tool_call)
 
@@ -440,9 +447,9 @@ class ClaudeSDKManager:
                         if isinstance(block, ToolUseBlock):
                             tools_used.append(
                                 {
-                                    "name": getattr(block, "tool_name", "unknown"),
+                                    "name": block.name,
                                     "timestamp": current_time,
-                                    "input": getattr(block, "tool_input", {}),
+                                    "input": block.input,
                                 }
                             )
 
